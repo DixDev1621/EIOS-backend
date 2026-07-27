@@ -19,7 +19,6 @@ from app.data import registry
 from app.db.supabase_client import get_supabase_admin
 from app.services import open_meteo_service, firms_service
 from app.services.aqi_calculator import compute_aqi
-from app.core.alerts_cache import alerts_cache
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/alerts", tags=["alerts"])
