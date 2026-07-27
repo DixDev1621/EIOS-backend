@@ -2,8 +2,8 @@
 Alerts endpoint.
 
 Alerts are DERIVED live from current conditions across all districts
-(no synthetic/static alert data). Severe-AQI and heatwave alerts come
-from the same Open-Meteo feeds as the rest of the platform; forest-fire
+(no synthetic/static alert data). Severe-AQI and heatwave alerts come from
+the same Open-Meteo feeds as the rest of the platform; forest-fire
 alerts come from NASA FIRMS. If Supabase is configured, computed alerts
 are also upserted into the `alerts` table so the frontend's realtime
 subscription and historical alert log both work; without Supabase the
@@ -34,15 +34,12 @@ async def _check_district(district) -> list[dict]:
         aq_task = open_meteo_service.fetch_current_air_quality(
             district["lat"], district["lon"]
         )
-        wx_task = open_meteo_service.fetch_current_weather(
-            district["lat"], district["lon"]
-        )
+
         fire_task = firms_service.fetch_fire_alerts(
             district["lat"], district["lon"], radius_deg=1.0, days=2
         )
 
-        aq, wx, fire = await asyncio.gather(aq_task, wx_task, fire_task)
-
+        aq, fire = await asyncio.gather(aq_task, fire_task)
         current_aq = aq.get("current", {})
         aqi_result = compute_aqi(
             pm25=current_aq.get("pm2_5"),
@@ -57,19 +54,6 @@ async def _check_district(district) -> list[dict]:
                     "district": district["name"],
                     "message": f"AQI at {aqi_result.aqi:.0f} ({aqi_result.category}) in {district['name']}.",
                     "value": aqi_result.aqi,
-                }
-            )
-
-        apparent_temp = wx.get("current", {}).get("apparent_temperature")
-
-        if apparent_temp is not None and apparent_temp >= HEATWAVE_THRESHOLD_C:
-            alerts.append(
-                {
-                    "type": "heatwave",
-                    "severity": "severe" if apparent_temp >= 45 else "warning",
-                    "district": district["name"],
-                    "message": f"Apparent temperature at {apparent_temp:.1f}°C in {district['name']}.",
-                    "value": apparent_temp,
                 }
             )
 
@@ -98,7 +82,6 @@ async def _check_district(district) -> list[dict]:
 async def get_active_alerts(state: str | None = None):
     if state:
         districts = registry.LIVE_DISTRICT_DATASETS.get(state.upper())
-
         if districts is None:
             raise HTTPException(
                 404,
@@ -121,7 +104,6 @@ async def get_active_alerts(state: str | None = None):
     all_alerts = [a for sub in results for a in sub]
 
     admin = get_supabase_admin()
-
     if admin is not None and all_alerts:
         try:
             admin.table("alerts").insert(all_alerts).execute()
