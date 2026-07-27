@@ -164,26 +164,7 @@ async def district_dashboard(identifier: str):
     aq_task = open_meteo_service.fetch_current_air_quality(district["lat"], district["lon"])
     wx_task = open_meteo_service.fetch_current_weather(district["lat"], district["lon"])
     fire_task = firms_service.fetch_fire_alerts(district["lat"], district["lon"], radius_deg=1.0, days=3)
-    
-    results = await asyncio.gather(
-        aq_task,
-        wx_task,
-        fire_task,
-        return_exceptions=True,
-    )
-    
-    aq, wx, fire = results
-    
-    if isinstance(aq, Exception):
-        raise HTTPException(503, "Air quality service unavailable")
-    
-    if isinstance(wx, Exception):
-        logger.warning(f"Weather service unavailable: {wx}")
-        wx = {"current": {}, "daily": {}}
-    
-    if isinstance(fire, Exception):
-        logger.warning(f"Fire alerts service unavailable: {fire}")
-        fire = {"detections": []}
+    aq, wx, fire = await asyncio.gather(aq_task, wx_task, fire_task)
 
     current_aq = aq.get("current", {})
     current_wx = wx.get("current", {})
