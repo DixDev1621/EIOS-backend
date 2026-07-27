@@ -107,7 +107,17 @@ async def get_active_alerts(state: str | None = None):
     else:
         districts = registry.all_live_districts()
 
-    results = await asyncio.gather(*(_check_district(d) for d in districts))
+    # Limit concurrent API requests to avoid Open-Meteo 429 errors
+    sem = asyncio.Semaphore(5)
+
+    async def limited_check(d):
+        async with sem:
+            return await _check_district(d)
+
+    results = await asyncio.gather(
+        *(limited_check(d) for d in districts)
+    )
+
     all_alerts = [a for sub in results for a in sub]
 
     admin = get_supabase_admin()
