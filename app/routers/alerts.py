@@ -108,7 +108,7 @@ async def get_active_alerts(state: str | None = None):
         districts = registry.all_live_districts()
 
     # Limit concurrent API requests to avoid Open-Meteo 429 errors
-    sem = asyncio.Semaphore(5)
+    sem = asyncio.Semaphore(2)
 
     async def limited_check(d):
         async with sem:
